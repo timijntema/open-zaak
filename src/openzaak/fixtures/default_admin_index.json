@@ -77,6 +77,10 @@
             [
                 "sites",
                 "site"
+            ],
+            [
+                "drc_cmis",
+                "cmisconfig"
             ]
         ]
     }

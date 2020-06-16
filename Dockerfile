@@ -61,6 +61,9 @@ ENV DJANGO_SETTINGS_MODULE=openzaak.conf.docker
 
 ARG SECRET_KEY=dummy
 
+RUN mkdir /app/config
+COPY ./config /app/config
+
 # Run collectstatic, so the result is already included in the image
 RUN python src/manage.py collectstatic --noinput
 
