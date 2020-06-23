@@ -1,17 +1,23 @@
 .. _installation_cmis:
 
+The CMIS adapter
+================
+
+In the standard installation of Open Zaak, any documents created through the `Documenten API`_ are managed by the Django
+ORM and are stored directly in a Postgres database.
+However, it is also possible to store these documents in a Document Management System (DMS).
+Instead of storing the documents directly in the Postgres database, the CMIS adapter makes CMIS requests to the
+DMS to create, update and delete documents.
+In this way, the documents are stored in the DMS.
+
+.. _`Documenten API`: https://documenten-api.vng.cloud/api/v1/schema/
+
 Using the CMIS adapter
-======================
+----------------------
 
-In order to use the CMIS adapter, the setting ``CMIS_ENABLED`` in the file ``src/openzaak/conf/includes/base.py`` should be set to ``True``:
-
-    .. code-block:: python
-
-        # File base.py
-
-        CMIS_ENABLED = True
-
-Then the following details need to be configured through the Admin interface of Open Zaak:
+In order to use the CMIS adapter, the setting ``CMIS_ENABLED`` should be set to ``True``.
+This can be done in the ``.env`` file.
+Then, the following details need to be configured through the Admin interface of Open Zaak:
 
     1. The client URL
     2. The client username/password
@@ -28,22 +34,52 @@ These can be configured under **Configuratie > CMIS configuration**. An example 
 The CMIS mapper
 ---------------
 
-The file ``config/cmis_mapper.json`` is used to map the names of the properties of the objects that can be saved in the DMS from their Open Zaak names to the CMIS names.
+Before a CMIS request can be performed, the names of the document properties have to be converted from the
+names used in Django to the names used in the DMS.
+The customised document model used in the DMS is defined in a XML file,
+where all the properties of the document are specified.
+An example XML file is ``extension/alfresco-zsdms-model.xml``.
+The mapping between the Django names and the names used in the XML is in the file ``config/cmis_mapper.json``.
+The keys are the names used in Django, while the values are the names used in the XML file.
 
+If a different custom document model is used, then the mapper file also needs to be updated.
+The path to the new mapper file is specified in the variable ``CMIS_MAPPER_FILE``. This can also be configured in the
+``.env`` file.
 
 
 Example CMIS request
 --------------------
 
 The example data below shows what data is sent by Open Zaak when a CMIS request is performed to create different objects.
-The objects are created with a POST request to the url of the root folder. The url of the root folder is obtained by appending ``/root/`` to the client url configured in the Admin interface of Open Zaak.
-For example, if the client url has been set to ``http://example.com/alfresco/api/-default-/public/cmis/versions/1.1/browser``, then the root folder url is ``http://example.com/alfresco/api/-default-/public/cmis/versions/1.1/browser/root``
+The objects are created with a POST request to the url of the root folder.
+The url of the root folder is obtained by appending ``/root/`` to the client url configured in the
+Admin interface of Open Zaak.
+For example, if the client url has been set to ``http://example.com/alfresco/api/-default-/public/cmis/versions/1.1/browser``,
+then the root folder url is ``http://example.com/alfresco/api/-default-/public/cmis/versions/1.1/browser/root``
+Within the root folder, all content created by Open Zaak will be in a folder whose name is specified in
+the configuration (by default ``DRC``).
+
 The username and passwords used are those specified in the CMIS configuration section of the Admin interface.
-The header of the POST request contains ``{"Accept": "application/json"}``.
 
-**Document objects**
+**Document objects (EnkelvoudigInformatieObject)**
 
-The data below is an example of what is sent from Open Zaak to create a document object.
+The data below is an example of what is sent from Open Zaak to create a document object according to the default document model.
+The first property (``objectId``) is the ID of the folder that will contain the new document.
+
+    .. code-block::
+
+        POST http://example.com/alfresco/api/-default-/public/cmis/versions/1.1/browser/root
+        User-Agent: python-requests/2.21.0
+        Accept-Encoding: gzip, deflate
+        Accept: application/json
+        Connection: keep-alive
+        Content-Length: 1241
+        Content-Type: x-www-form-urlencoded
+        Authorization: Basic YWRtaW46YWRtaW4=
+
+        objectId=02bc165a-4f55-4d65-818a-e0b9d4ace38f&cmisaction=createDocument&propertyId%5B0%5D=cmis%3Aname&propertyValue%5B0%5D=some+titel-HWVLOF&propertyId%5B1%5D=cmis%3AobjectTypeId&propertyValue%5B1%5D=D%3Adrc%3Adocument&propertyId%5B2%5D=drc%3Adocument__identificatie&propertyValue%5B2%5D=6cd3cf4a-320d-4167-a192-fb33a34184ac&propertyId%5B3%5D=drc%3Adocument__bronorganisatie&propertyValue%5B3%5D=275318941&propertyId%5B4%5D=drc%3Adocument__creatiedatum&propertyValue%5B4%5D=2018-06-27T00%3A00%3A00.000Z&propertyId%5B5%5D=drc%3Adocument__titel&propertyValue%5B5%5D=some+titel&propertyId%5B6%5D=drc%3Adocument__auteur&propertyValue%5B6%5D=some+auteur&propertyId%5B7%5D=drc%3Adocument__formaat&propertyValue%5B7%5D=some+formaat&propertyId%5B8%5D=drc%3Adocument__taal&propertyValue%5B8%5D=nld&propertyId%5B9%5D=drc%3Adocument__informatieobjecttype&propertyValue%5B9%5D=http%3A%2F%2Ftestserver%2Fcatalogi%2Fapi%2Fv1%2Finformatieobjecttypen%2F4123f2e5-8201-46a9-9030-3d629ca5baeb&propertyId%5B10%5D=drc%3Adocument__vertrouwelijkaanduiding&propertyValue%5B10%5D=openbaar&propertyId%5B11%5D=drc%3Adocument__beschrijving&propertyValue%5B11%5D=old&propertyId%5B12%5D=drc%3Adocument__begin_registratie&propertyValue%5B12%5D=2020-06-23T13%3A02%3A11.000Z
+
+The data present in the body is also shown below in a more readable format:
 
     .. code-block::
 
@@ -79,9 +115,25 @@ The data below is an example of what is sent from Open Zaak to create a document
         }
 
 
-**Usage rights objects**
+**Usage rights objects (Gebruiksrechten)**
 
 The data below is an example of what is sent from Open Zaak to create a usage right object.
+
+    .. code-block::
+
+        POST http://example.com/alfresco/api/-default-/public/cmis/versions/1.1/browser/root
+        User-Agent: python-requests/2.21.0
+        Accept-Encoding: gzip, deflate
+        Accept: application/json
+        Connection: keep-alive
+        Content-Length: 706
+        Content-Type: x-www-form-urlencoded
+        Authorization: Basic YWRtaW46YWRtaW4=
+
+        objectId=a6b372f2-c009-48ca-a4f9-52fd6ae5cba1&cmisaction=createDocument&propertyId%5B0%5D=cmis%3Aname&propertyValue%5B0%5D=4WN8N9&propertyId%5B1%5D=cmis%3AobjectTypeId&propertyValue%5B1%5D=D%3Adrc%3Agebruiksrechten&propertyId%5B2%5D=drc%3Agebruiksrechten__startdatum&propertyValue%5B2%5D=2020-06-23T13%3A01%3A49.000Z&propertyId%5B3%5D=drc%3Agebruiksrechten__omschrijving_voorwaarden&propertyValue%5B3%5D=Training+according+value+somebody+analysis.+Practice+special+organization+plant.+Media+treatment+protect+others+should+billion.&propertyId%5B4%5D=drc%3Agebruiksrechten__informatieobject&propertyValue%5B4%5D=http%3A%2F%2Ftestserver%2Fdocumenten%2Fapi%2Fv1%2Fenkelvoudiginformatieobjecten%2F9ba4ed73-7783-48ce-bcc0-393c1e5ef01e
+
+
+The data passed in the body is also shown below in a more readable format:
 
     .. code-block::
 
@@ -97,5 +149,5 @@ The data below is an example of what is sent from Open Zaak to create a usage ri
             'propertyId[3]': 'drc:gebruiksrechten__omschrijving_voorwaarden',
             'propertyValue[3]': 'A sample description',
             'propertyId[4]': 'drc:gebruiksrechten__informatieobject',
-            'propertyValue[4]': '/documenten/api/v1/enkelvoudiginformatieobjecten/5bd261cf-9fa0-4289-b5fc-a19f363b0f74'
+            'propertyValue[4]': 'http://testserver/documenten/api/v1/enkelvoudiginformatieobjecten/5bd261cf-9fa0-4289-b5fc-a19f363b0f74'
         }
