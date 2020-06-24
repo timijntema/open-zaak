@@ -3,10 +3,10 @@
 The CMIS adapter
 ================
 
-In the standard installation of Open Zaak, any documents created through the `Documenten API`_ are managed by the Django
-ORM and are stored directly in a Postgres database.
+In the standard installation of Open Zaak, any documents created through the `Documenten API`_ are stored
+on disk and their metadata is stored in the database.
 However, it is also possible to store these documents in a Document Management System (DMS).
-Instead of storing the documents directly in the Postgres database, the CMIS adapter makes CMIS requests to the
+Instead of storing the documents, the CMIS adapter converts API calls to CMIS requests which are sent to the
 DMS to create, update and delete documents.
 In this way, the documents are stored in the DMS.
 
@@ -34,13 +34,12 @@ These can be configured under **Configuratie > CMIS configuration**. An example 
 The CMIS mapper
 ---------------
 
-Before a CMIS request can be performed, the names of the document properties have to be converted from the
-names used in Django to the names used in the DMS.
+Before a CMIS request can be performed, each attribute passed via the Document API has to be mapped to a CMIS property.
 The customised document model used in the DMS is defined in a XML file,
 where all the properties of the document are specified.
 An example XML file is ``extension/alfresco-zsdms-model.xml``.
-The mapping between the Django names and the names used in the XML is in the file ``config/cmis_mapper.json``.
-The keys are the names used in Django, while the values are the names used in the XML file.
+The mapping between the Document API attributes and the names used in the XML is in the file ``config/cmis_mapper.json``.
+The keys are the names of the attributes in the Document API, while the values are the names used in the XML file.
 
 If a different custom document model is used, then the mapper file also needs to be updated.
 The path to the new mapper file is specified in the variable ``CMIS_MAPPER_FILE``. This can also be configured in the
@@ -55,7 +54,7 @@ The objects are created with a POST request to the url of the root folder.
 The url of the root folder is obtained by appending ``/root/`` to the client url configured in the
 Admin interface of Open Zaak.
 For example, if the client url has been set to ``http://example.com/alfresco/api/-default-/public/cmis/versions/1.1/browser``,
-then the root folder url is ``http://example.com/alfresco/api/-default-/public/cmis/versions/1.1/browser/root``
+then the root folder url is ``http://example.com/alfresco/api/-default-/public/cmis/versions/1.1/browser/root``.
 Within the root folder, all content created by Open Zaak will be in a folder whose name is specified in
 the configuration (by default ``DRC``).
 
