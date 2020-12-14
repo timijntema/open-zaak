@@ -743,12 +743,65 @@ class EnkelvoudigInformatieObjectVersionHistoryAPITests(JWTAuthMixin, APICMISTes
                 "lock": lock,
             },
         )
+        # Test latest version
+        response = self.client.get(eio_url, {"versie": "2"})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+        response_download = self.client.get(response.data["inhoud"])
+
+        self.assertTrue(response_download.streaming)
+        self.assertEqual(response_download.getvalue(), b"inhoud2")
+
+        # Test earlier version
         response = self.client.get(eio_url, {"versie": "1"})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
         response_download = self.client.get(response.data["inhoud"])
 
         self.assertTrue(response_download.streaming)
         self.assertEqual(response_download.getvalue(), b"inhoud1")
+
+        # Unlock and try retrieving the various versions again
+        self.client.post(f"{eio_url}/unlock", {"lock": lock})
+
+        # Test latest version
+        response = self.client.get(eio_url, {"versie": "2"})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        response_download = self.client.get(response.data["inhoud"])
+
+        self.assertTrue(response_download.streaming)
+        self.assertEqual(response_download.getvalue(), b"inhoud2")
+
+        # Test earlier version
+        response = self.client.get(eio_url, {"versie": "1"})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        response_download = self.client.get(response.data["inhoud"])
+
+        self.assertTrue(response_download.streaming)
+        self.assertEqual(response_download.getvalue(), b"inhoud1")
+
+    def test_eio_download_filter_float_versie(self):
+        eio = EnkelvoudigInformatieObjectFactory.create(
+            beschrijving="beschrijving1", inhoud__data=b"inhoud1"
+        )
+
+        eio_url = reverse(
+            "enkelvoudiginformatieobject-detail", kwargs={"uuid": eio.uuid}
+        )
+        lock = self.client.post(f"{eio_url}/lock").data["lock"]
+        self.client.patch(
+            eio_url,
+            {
+                "inhoud": b64encode(b"inhoud2"),
+                "beschrijving": "beschrijving2",
+                "lock": lock,
+            },
+        )
+
+        response = self.client.get(eio_url, {"versie": "1.0"})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_eio_download_content_filter_by_registratie(self):
         with freeze_time("2019-01-01 12:00:00"):
